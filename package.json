@@ -131,6 +131,10 @@
       "package.json",
       "node_modules/**/*"
     ],
+    "asarUnpack": [
+      "dist/**/*",
+      "node_modules/**/*"
+    ],
     "extraMetadata": {
       "main": "gui/main.cjs"
     },

@@ -63,13 +63,28 @@ ipcMain.handle("run-blocks-live", async (event, options = {}) => {
 });
 
 function runCommand(command, options = {}) {
-  return new Promise((resolve, reject) => {
-    // アプリケーションがパッケージングされているかチェック
-    const isPackaged = app.isPackaged;
-    const basePath = isPackaged
-      ? path.join(process.resourcesPath, "app.asar")
-      : path.join(__dirname, "..");
+  return new Promise(async (resolve, reject) => {
+    try {
+      // アプリケーションがパッケージングされているかチェック
+      const isPackaged = app.isPackaged;
+      const basePath = isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked")
+        : path.join(__dirname, "..");
 
+      // パッケージされたアプリの場合は、spawnを使用
+      runCommandSpawn(command, options, basePath, isPackaged).then(resolve).catch(reject);
+    } catch (err) {
+      reject({ 
+        success: false, 
+        error: err.message,
+        details: { command, error: err }
+      });
+    }
+  });
+}
+
+function runCommandSpawn(command, options, basePath, isPackaged) {
+  return new Promise((resolve, reject) => {
     const args = [path.join(basePath, "dist/index.js"), command];
 
     // オプションを引数に変換
@@ -79,9 +94,18 @@ function runCommand(command, options = {}) {
     if (options.breakdown) args.push("--breakdown");
     if (options.active) args.push("--active");
 
-    const child = spawn("node", args, {
+    // 環境変数を保持（特にHOMEディレクトリ）
+    const env = { ...process.env };
+    
+    // パッケージされたアプリでもnodeを使用
+    const nodePath = process.execPath;
+    const isElectron = nodePath.includes("Electron");
+    
+    const child = spawn(isElectron ? "node" : nodePath, args, {
       cwd: isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
       stdio: "pipe",
+      env: env,
+      shell: true, // シェルを使用してnodeコマンドを探す
     });
 
     let stdout = "";
@@ -99,12 +123,37 @@ function runCommand(command, options = {}) {
       if (code === 0) {
         resolve({ success: true, output: stdout });
       } else {
-        reject({ success: false, error: stderr || stdout });
+        console.error("Command failed:", command);
+        console.error("Exit code:", code);
+        console.error("stderr:", stderr);
+        console.error("stdout:", stdout);
+        reject({ 
+          success: false, 
+          error: stderr || stdout || `Command failed with exit code ${code}`,
+          details: {
+            command,
+            code,
+            stderr,
+            stdout,
+            cwd: isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
+            args
+          }
+        });
       }
     });
-
-    child.on("error", (error) => {
-      reject({ success: false, error: error.message });
+    
+    child.on("error", (err) => {
+      console.error("Failed to start process:", err);
+      reject({ 
+        success: false, 
+        error: err.message,
+        details: {
+          command,
+          error: err,
+          cwd: isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
+          args
+        }
+      });
     });
   });
 }
