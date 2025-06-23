@@ -6,13 +6,13 @@
   "author": "youtakanke (based on original by ryoppippi)",
   "license": "MIT",
   "funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-  "homepage": "https://github.com/youtakanke/ccusage#readme",
+  "homepage": "https://github.com/youtakanke/ccusage-gui#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/youtakanke/ccusage.git"
+    "url": "git+https://github.com/youtakanke/ccusage-gui.git"
   },
   "bugs": {
-    "url": "https://github.com/youtakanke/ccusage/issues"
+    "url": "https://github.com/youtakanke/ccusage-gui/issues"
   },
   "exports": {
     ".": "./dist/index.js",
