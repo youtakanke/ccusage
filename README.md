@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-    <a href="https://github.com/youtakanke/ccusage-gui-enhanced/releases"><img src="https://img.shields.io/github/v/release/youtakanke/ccusage-gui-enhanced?color=green&label=GUI%20Enhanced" alt="GUI Enhanced Version" /></a>
+    <a href="https://github.com/youtakanke/ccusage/releases"><img src="https://img.shields.io/github/v/release/youtakanke/ccusage?color=green&label=GUI%20Enhanced" alt="GUI Enhanced Version" /></a>
     <a href="https://npmjs.com/package/ccusage"><img src="https://img.shields.io/npm/v/ccusage?color=yellow&label=Original%20CLI" alt="Original CLI Version" /></a>
     <a href="https://github.com/ryoppippi/ccusage"><img src="https://img.shields.io/badge/Original-ryoppippi%2Fccusage-blue" alt="Original Repository" /></a>
 </p>
@@ -24,14 +24,14 @@ This is an enhanced version of ccusage with a beautiful macOS GUI application fe
 ## 🚀 Quick Start (GUI)
 
 ### Option 1: Download DMG (Recommended)
-1. Download the latest DMG from [Releases](https://github.com/youtakanke/ccusage-gui-enhanced/releases)
+1. Download the latest DMG from [Releases](https://github.com/youtakanke/ccusage/releases)
 2. Open the DMG and drag CCUsage to Applications
 3. Launch the app from Applications or Launchpad
 
 ### Option 2: Run from Source
 ```bash
-git clone https://github.com/youtakanke/ccusage-gui-enhanced.git
-cd ccusage-gui-enhanced
+git clone https://github.com/youtakanke/ccusage.git
+cd ccusage
 npm install
 npm run gui:dev  # Development mode with DevTools
 # or
