@@ -1,18 +1,18 @@
 {
-  "name": "ccusage",
+  "name": "ccusage-gui-enhanced",
   "type": "module",
-  "version": "15.1.0",
-  "description": "Usage analysis tool for Claude Code",
-  "author": "ryoppippi",
+  "version": "15.1.0-gui.1",
+  "description": "Enhanced GUI version of CCUsage - Usage analysis tool for Claude Code with improved live monitoring and UI",
+  "author": "a12406 (based on original by ryoppippi)",
   "license": "MIT",
   "funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-  "homepage": "https://github.com/ryoppippi/ccusage#readme",
+  "homepage": "https://github.com/a12406/ccusage-gui-enhanced#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ryoppippi/ccusage.git"
+    "url": "git+https://github.com/a12406/ccusage-gui-enhanced.git"
   },
   "bugs": {
-    "url": "https://github.com/ryoppippi/ccusage/issues"
+    "url": "https://github.com/a12406/ccusage-gui-enhanced/issues"
   },
   "exports": {
     ".": "./dist/index.js",
@@ -117,8 +117,8 @@
     "simple-git-hooks"
   ],
   "build": {
-    "appId": "com.ryoppippi.ccusage",
-    "productName": "CCUsage",
+    "appId": "com.a12406.ccusage-gui-enhanced",
+    "productName": "CCUsage GUI Enhanced",
     "directories": {
       "output": "dist-electron"
     },
@@ -148,7 +148,7 @@
       ]
     },
     "dmg": {
-      "title": "CCUsage ${version}",
+      "title": "CCUsage GUI Enhanced ${version}",
       "backgroundColor": "#667eea"
     }
   }
