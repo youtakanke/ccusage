@@ -3,6 +3,19 @@ import process from 'node:process';
 import * as ansiEscapes from 'ansi-escapes';
 import stringWidth from 'string-width';
 
+// DEC synchronized output mode - prevents screen flickering by buffering all terminal writes
+// until flush() is called. Think of it like double-buffering in graphics programming.
+// Reference: https://gist.github.com/christianparpart/d8a62cc1ab659194337d73e399004036
+const SYNC_START = '\x1B[?2026h'; // Start sync mode
+const SYNC_END = '\x1B[?2026l'; // End sync mode
+
+// Line wrap control sequences
+const DISABLE_LINE_WRAP = '\x1B[?7l'; // Disable automatic line wrapping
+const ENABLE_LINE_WRAP = '\x1B[?7h'; // Enable automatic line wrapping
+
+// ANSI reset sequence
+const ANSI_RESET = '\u001B[0m'; // Reset all formatting and colors
+
 /**
  * Manages terminal state for live updates
  * Provides a clean interface for terminal operations with automatic TTY checking
@@ -11,6 +24,10 @@ import stringWidth from 'string-width';
 export class TerminalManager {
 	private stream: WriteStream;
 	private cursorHidden = false;
+	private buffer: string[] = [];
+	private useBuffering = false;
+	private alternateScreenActive = false;
+	private syncMode = false;
 
 	constructor(stream: WriteStream = process.stdout) {
 		this.stream = stream;
@@ -53,10 +70,82 @@ export class TerminalManager {
 
 	/**
 	 * Writes text to the terminal stream
-	 * Simple wrapper that could be removed, but kept for API consistency
+	 * Supports buffering mode for performance optimization
 	 */
 	write(text: string): void {
-		this.stream.write(text);
+		if (this.useBuffering) {
+			this.buffer.push(text);
+		}
+		else {
+			this.stream.write(text);
+		}
+	}
+
+	/**
+	 * Enables buffering mode - collects all writes in memory instead of sending immediately
+	 * This prevents flickering when doing many rapid updates
+	 */
+	startBuffering(): void {
+		this.useBuffering = true;
+		this.buffer = [];
+	}
+
+	/**
+	 * Sends all buffered content to terminal at once
+	 * This creates smooth, atomic updates without flickering
+	 */
+	flush(): void {
+		if (this.useBuffering && this.buffer.length > 0) {
+			// Wrap output in sync mode for truly atomic screen updates
+			if (this.syncMode && this.stream.isTTY) {
+				this.stream.write(SYNC_START + this.buffer.join('') + SYNC_END);
+			}
+			else {
+				this.stream.write(this.buffer.join(''));
+			}
+			this.buffer = [];
+		}
+		this.useBuffering = false;
+	}
+
+	/**
+	 * Switches to alternate screen buffer (like vim/less does)
+	 * This preserves what was on screen before and allows full-screen apps
+	 */
+	enterAlternateScreen(): void {
+		if (!this.alternateScreenActive && this.stream.isTTY) {
+			this.stream.write(ansiEscapes.enterAlternativeScreen);
+			// Turn off line wrapping to prevent text from breaking badly
+			this.stream.write(DISABLE_LINE_WRAP);
+			this.alternateScreenActive = true;
+		}
+	}
+
+	/**
+	 * Returns to normal screen, restoring what was there before
+	 */
+	exitAlternateScreen(): void {
+		if (this.alternateScreenActive && this.stream.isTTY) {
+			// Re-enable line wrap
+			this.stream.write(ENABLE_LINE_WRAP);
+			this.stream.write(ansiEscapes.exitAlternativeScreen);
+			this.alternateScreenActive = false;
+		}
+	}
+
+	/**
+	 * Enables sync mode - terminal will wait for END signal before showing updates
+	 * Prevents the user from seeing partial/torn screen updates
+	 */
+	enableSyncMode(): void {
+		this.syncMode = true;
+	}
+
+	/**
+	 * Disables synchronized output mode
+	 */
+	disableSyncMode(): void {
+		this.syncMode = false;
 	}
 
 	/**
@@ -76,19 +165,21 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Checks if the stream is connected to a real terminal (TTY)
-	 * Used to avoid sending ANSI escape codes to files or pipes
+	 * Returns true if output goes to a real terminal (not a file or pipe)
+	 * We only send fancy ANSI codes to real terminals
 	 */
 	get isTTY(): boolean {
 		return this.stream.isTTY ?? false;
 	}
 
 	/**
-	 * Cleanup method to restore terminal state
-	 * Always call this before program exit to show cursor again
+	 * Restores terminal to normal state - MUST call before program exits
+	 * Otherwise user's terminal might be left in a broken state
 	 */
 	cleanup(): void {
 		this.showCursor();
+		this.exitAlternateScreen();
+		this.disableSyncMode();
 	}
 }
 
@@ -170,7 +261,7 @@ export function createProgressBar(
 	bar += fillChar.repeat(fillWidth);
 	bar += emptyChar.repeat(emptyWidth);
 	if (color !== '') {
-		bar += '\u001B[0m'; // Reset color
+		bar += ANSI_RESET; // Reset color
 	}
 	bar += rightBracket;
 

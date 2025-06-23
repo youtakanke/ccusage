@@ -171,8 +171,6 @@ export class LiveMonitor implements Disposable {
 }
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect, beforeEach, afterEach } = import.meta.vitest;
-
 	describe('LiveMonitor', () => {
 		let tempDir: string;
 		let monitor: LiveMonitor;

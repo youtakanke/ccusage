@@ -45,7 +45,40 @@ export class PricingFetcher implements Disposable {
 	}
 
 	/**
+	 * Loads offline pricing data from pre-fetched cache
+	 * @returns Map of model names to pricing information
+	 */
+	private async loadOfflinePricing(): Promise<Map<string, ModelPricing>> {
+		const pricing = new Map(Object.entries(await prefetchClaudePricing()));
+		this.cachedPricing = pricing;
+		return pricing;
+	}
+
+	/**
+	 * Handles fallback to offline pricing when network fetch fails
+	 * @param originalError - The original error from the network fetch
+	 * @returns Map of model names to pricing information
+	 * @throws Error if both network fetch and fallback fail
+	 */
+	private async handleFallbackToCachedPricing(originalError: unknown): Promise<Map<string, ModelPricing>> {
+		logger.warn('Failed to fetch model pricing from LiteLLM, falling back to cached pricing data');
+		logger.debug('Fetch error details:', originalError);
+
+		try {
+			const fallbackPricing = await this.loadOfflinePricing();
+			logger.info(`Using cached pricing data for ${fallbackPricing.size} models`);
+			return fallbackPricing;
+		}
+		catch (fallbackError) {
+			logger.error('Failed to load cached pricing data as fallback:', fallbackError);
+			logger.error('Original fetch error:', originalError);
+			throw new Error('Could not fetch model pricing data and fallback data is unavailable');
+		}
+	}
+
+	/**
 	 * Ensures pricing data is loaded, either from cache or by fetching
+	 * Automatically falls back to offline mode if network fetch fails
 	 * @returns Map of model names to pricing information
 	 */
 	private async ensurePricingLoaded(): Promise<Map<string, ModelPricing>> {
@@ -55,9 +88,7 @@ export class PricingFetcher implements Disposable {
 
 		// If we're in offline mode, return pre-fetched data
 		if (this.offline) {
-			const pricing = new Map(Object.entries(await prefetchClaudePricing()));
-			this.cachedPricing = pricing;
-			return pricing;
+			return this.loadOfflinePricing();
 		}
 
 		try {
@@ -87,8 +118,7 @@ export class PricingFetcher implements Disposable {
 			return pricing;
 		}
 		catch (error) {
-			logger.error('Failed to fetch model pricing:', error);
-			throw new Error('Could not fetch model pricing data');
+			return this.handleFallbackToCachedPricing(error);
 		}
 	}
 
@@ -477,6 +507,99 @@ if (import.meta.vitest != null) {
 				);
 
 				expect(cost).toBeGreaterThan(0);
+			});
+		});
+
+		describe('automatic fallback to offline mode', () => {
+			/**
+			 * Clean up any mocked globals after each test to prevent test interference
+			 * This ensures test isolation and prevents side effects between tests
+			 */
+			afterEach(() => {
+				vi.unstubAllGlobals();
+			});
+
+			/**
+			 * Test that verifies the automatic fallback mechanism when network fetch fails.
+			 * This simulates real-world scenarios where the LiteLLM API is unavailable
+			 * due to network issues, service outages, or connectivity problems.
+			 */
+			it('should fallback to cached data when fetch fails with network error', async () => {
+				// Use vitest's mock functionality to simulate network failure
+				const fetchMock = vi.fn().mockRejectedValue(new Error('Network error'));
+				vi.stubGlobal('fetch', fetchMock);
+
+				using fetcher = new PricingFetcher(false); // Start in online mode
+				const pricing = await fetcher.fetchModelPricing();
+
+				// Verify that fetch was called (attempting online mode first)
+				expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('litellm'));
+
+				// Verify successful fallback to cached pricing data
+				expect(pricing.size).toBeGreaterThan(0);
+
+				// Verify that Claude models are available from cached data
+				const claudeModels = Array.from(pricing.keys()).filter(key =>
+					key.startsWith('claude-'),
+				);
+				expect(claudeModels.length).toBeGreaterThan(0);
+			});
+
+			/**
+			 * Test that cost calculations work correctly after automatic fallback.
+			 * This ensures that the fallback mechanism doesn't break the core functionality
+			 * of calculating usage costs from token counts.
+			 */
+			it('should calculate costs correctly after automatic fallback', async () => {
+				// Simulate network failure to trigger fallback mechanism
+				const fetchMock = vi.fn().mockRejectedValue(new Error('Connection timeout'));
+				vi.stubGlobal('fetch', fetchMock);
+
+				using fetcher = new PricingFetcher(false); // Start in online mode, will fallback
+
+				const cost = await fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 1000,
+						output_tokens: 500,
+					},
+					'claude-4-sonnet-20250514',
+				);
+
+				// Verify that cost calculation succeeds using fallback pricing data
+				expect(cost).toBeGreaterThan(0);
+
+				// Verify that the cost is reasonable (not zero or extremely high)
+				expect(cost).toBeLessThan(1); // Should be less than $1 for 1500 tokens
+			});
+
+			/**
+			 * Test that verifies fallback when HTTP response indicates server error.
+			 * This covers scenarios like 500 Internal Server Error, 503 Service Unavailable,
+			 * or other HTTP error responses from the LiteLLM API.
+			 */
+			it('should fallback to cached data when HTTP response is not ok', async () => {
+				// Mock HTTP error response (e.g., 503 Service Unavailable)
+				const fetchMock = vi.fn().mockResolvedValue({
+					ok: false,
+					status: 503,
+					statusText: 'Service Unavailable',
+				} as Response);
+				vi.stubGlobal('fetch', fetchMock);
+
+				using fetcher = new PricingFetcher(false); // Start in online mode
+				const pricing = await fetcher.fetchModelPricing();
+
+				// Verify that fetch was attempted
+				expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('litellm'));
+
+				// Verify successful fallback despite HTTP error response
+				expect(pricing.size).toBeGreaterThan(0);
+
+				// Verify Claude models are available from cached data
+				const claudeModels = Array.from(pricing.keys()).filter(key =>
+					key.startsWith('claude-'),
+				);
+				expect(claudeModels.length).toBeGreaterThan(0);
 			});
 		});
 	});

@@ -1,18 +1,18 @@
 {
   "name": "ccusage-gui-enhanced",
   "type": "module",
-  "version": "15.1.0-gui.1",
+  "version": "15.2.0-gui.1",
   "description": "Enhanced GUI version of CCUsage - Usage analysis tool for Claude Code with improved live monitoring and UI",
-  "author": "a12406 (based on original by ryoppippi)",
+  "author": "youtakanke (based on original by ryoppippi)",
   "license": "MIT",
   "funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-  "homepage": "https://github.com/a12406/ccusage-gui-enhanced#readme",
+  "homepage": "https://github.com/youtakanke/ccusage-gui-enhanced#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/a12406/ccusage-gui-enhanced.git"
+    "url": "git+https://github.com/youtakanke/ccusage-gui-enhanced.git"
   },
   "bugs": {
-    "url": "https://github.com/a12406/ccusage-gui-enhanced/issues"
+    "url": "https://github.com/youtakanke/ccusage-gui-enhanced/issues"
   },
   "exports": {
     ".": "./dist/index.js",
@@ -117,7 +117,7 @@
     "simple-git-hooks"
   ],
   "build": {
-    "appId": "com.a12406.ccusage-gui-enhanced",
+    "appId": "com.youtakanke.ccusage-gui-enhanced",
     "productName": "CCUsage GUI Enhanced",
     "directories": {
       "output": "dist-electron"
