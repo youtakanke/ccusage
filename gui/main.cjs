@@ -2,9 +2,16 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 
+console.log("=== CCUsage GUI Enhanced starting ===");
+console.log("App version:", app.getVersion());
+console.log("Is packaged:", app.isPackaged);
+console.log("Resources path:", process.resourcesPath);
+console.log("Current working directory:", process.cwd());
+
 let mainWindow;
 
 function createWindow() {
+  console.log("Creating main window...");
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -19,7 +26,9 @@ function createWindow() {
       : path.join(__dirname, "../docs/public/logo.png"),
   });
 
-  mainWindow.loadFile(path.join(__dirname, "index.html"));
+  const htmlPath = path.join(__dirname, "index.html");
+  console.log("Loading HTML file:", htmlPath);
+  mainWindow.loadFile(htmlPath);
 
   // 開発モードでは DevTools を開く
   if (process.argv.includes("--dev")) {
@@ -34,7 +43,10 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  console.log("App is ready, creating window...");
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -50,7 +62,19 @@ app.on("activate", () => {
 
 // IPC handlers for CLI commands
 ipcMain.handle("run-daily", async (event, options = {}) => {
-  return runCommand("daily", options);
+  console.log("IPC: run-daily called with options:", options);
+  try {
+    const result = await runCommand("daily", options);
+    console.log("IPC: run-daily result:", result);
+    return result;
+  } catch (error) {
+    console.error("IPC: run-daily error:", error);
+    return {
+      success: false,
+      error: error.message || "Unknown error",
+      details: error
+    };
+  }
 });
 
 ipcMain.handle("run-monthly", async (event, options = {}) => {

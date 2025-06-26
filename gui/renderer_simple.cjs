@@ -183,10 +183,19 @@ async function runCurrentCommand() {
   showLoading();
 
   try {
+    console.log("Renderer: Calling IPC with command:", config.command, "options:", options);
     const result = await ipcRenderer.invoke(config.command, options);
-    displayOutput(result.output);
+    console.log("Renderer: IPC result:", result);
+    
+    if (result && result.success !== false) {
+      displayOutput(result.output || result);
+    } else {
+      console.error("Renderer: Command failed:", result);
+      displayError(result.error || "Command failed with unknown error");
+    }
   } catch (error) {
-    displayError(error.error || error.message);
+    console.error("Renderer: IPC error:", error);
+    displayError(`IPC Error: ${error.error || error.message || error}`);
   } finally {
     setRunning(false);
   }
