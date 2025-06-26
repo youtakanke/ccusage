@@ -133,6 +133,7 @@
     ],
     "asarUnpack": [
       "dist/**/*",
+      "docs/public/logo.png",
       "node_modules/**/*"
     ],
     "extraMetadata": {

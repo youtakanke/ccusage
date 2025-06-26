@@ -15,7 +15,7 @@ function createWindow() {
     },
     titleBarStyle: "hiddenInset", // macOS style
     icon: app.isPackaged
-      ? path.join(process.resourcesPath, "app.asar", "docs/public/logo.png")
+      ? path.join(process.resourcesPath, "app.asar.unpacked", "docs/public/logo.png")
       : path.join(__dirname, "../docs/public/logo.png"),
   });
 
@@ -25,6 +25,13 @@ function createWindow() {
   if (process.argv.includes("--dev")) {
     mainWindow.webContents.openDevTools();
   }
+  
+  // パッケージ化されたアプリでもF12で開発者ツールを開けるように
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' || (input.control && input.shift && input.key === 'I')) {
+      mainWindow.webContents.openDevTools();
+    }
+  });
 }
 
 app.whenReady().then(createWindow);
@@ -97,12 +104,50 @@ function runCommandSpawn(command, options, basePath, isPackaged) {
     // 環境変数を保持（特にHOMEディレクトリ）
     const env = { ...process.env };
     
-    // パッケージされたアプリでもnodeを使用
-    const nodePath = process.execPath;
-    const isElectron = nodePath.includes("Electron");
+    // nodeコマンドを見つける
+    let nodeCommand;
+    try {
+      // 一般的なnodeのパスを試す
+      const commonNodePaths = [
+        '/usr/local/bin/node',
+        '/opt/homebrew/bin/node',
+        '/usr/bin/node',
+        process.env.HOME + '/.nodenv/shims/node',
+        process.env.HOME + '/.nvm/versions/node/*/bin/node'
+      ];
+      
+      const fs = require('fs');
+      nodeCommand = 'node'; // デフォルトはシステムPATHから探す
+      
+      // パッケージ化されたアプリの場合、明示的なパスを試す
+      if (isPackaged) {
+        for (const nodePath of commonNodePaths) {
+          try {
+            if (fs.existsSync(nodePath)) {
+              nodeCommand = nodePath;
+              break;
+            }
+          } catch (e) {
+            // パスチェックでエラーが発生した場合は無視
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error finding node:", e);
+      nodeCommand = 'node';
+    }
     
-    const child = spawn(isElectron ? "node" : nodePath, args, {
-      cwd: isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
+    const workingDir = isPackaged 
+      ? path.join(process.resourcesPath, "app.asar.unpacked")
+      : path.join(__dirname, "..");
+    
+    console.log("Using node command:", nodeCommand);
+    console.log("Command args:", args);
+    console.log("CWD:", workingDir);
+    console.log("Is packaged:", isPackaged);
+    
+    const child = spawn(nodeCommand, args, {
+      cwd: workingDir,
       stdio: "pipe",
       env: env,
       shell: true, // シェルを使用してnodeコマンドを探す
@@ -135,7 +180,7 @@ function runCommandSpawn(command, options, basePath, isPackaged) {
             code,
             stderr,
             stdout,
-            cwd: isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
+            cwd: workingDir,
             args
           }
         });
@@ -150,7 +195,7 @@ function runCommandSpawn(command, options, basePath, isPackaged) {
         details: {
           command,
           error: err,
-          cwd: isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
+          cwd: workingDir,
           args
         }
       });
