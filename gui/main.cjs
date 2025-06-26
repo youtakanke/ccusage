@@ -170,11 +170,16 @@ function runCommandSpawn(command, options, basePath, isPackaged) {
     console.log("CWD:", workingDir);
     console.log("Is packaged:", isPackaged);
     
-    const child = spawn(nodeCommand, args, {
+    // ESモジュールを実行するためのコマンドを構築
+    const fullCommand = `"${nodeCommand}" "${args[0]}" ${args.slice(1).join(' ')}`;
+    
+    console.log("Full command:", fullCommand);
+    
+    const child = spawn(fullCommand, [], {
       cwd: workingDir,
       stdio: "pipe",
       env: env,
-      shell: true, // シェルを使用してnodeコマンドを探す
+      shell: true, // シェルを使用してパスの問題を回避
     });
 
     let stdout = "";
